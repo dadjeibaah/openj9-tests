@@ -1,0 +1,37 @@
+version: '3'
+services:
+  hello:
+     image: "buoyantio/helloworld:0.1.6"
+     command:
+      - "-target=world:7778"
+      - "-text=hello"
+     ports:
+       - "7777:7777"
+  world:
+     image: "buoyantio/helloworld:0.1.6"
+     command:
+      - "-addr=:7778"
+      - "-text=world"
+  demoj9:
+    image: "buoyantio/linkerd:1.4.3-SNAPSHOT-jdk-openj9"
+    ports:
+    - "9990:9990"
+    - "4140:4140"
+    volumes:
+      - ./disco:/disco:ro
+      - ./basic.config.yml:/io.buoyant/linkerd/config.yml:ro
+    command:
+    - "/io.buoyant/linkerd/config.yml"
+  slow_cooker:
+    image: buoyantio/slow_cooker:1.0.1
+    environment:
+    - http_proxy=http://demoj9:4140
+    entrypoint: /bin/sh
+    command: >
+      -c 'sleep 15 && slow_cooker -qps 10 -concurrency 50 -interval 5s http://hello/'
+  admin_probe:
+    image: byrnedo/alpine-curl
+    volumes:
+    - ./ping-count.sh:/usr/local/bin/ping-count.sh
+    command:
+    - "demoj9:9991/admin/ping"
